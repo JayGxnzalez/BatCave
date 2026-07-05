@@ -16,9 +16,9 @@ async function searchResults(keyword) {
                 title: decodeEntities(match[3].trim())
             });
         }
-        return JSON.stringify(results);
+        return results;
     } catch (err) {
-        return JSON.stringify([]);
+        return [];
     }
 }
 
@@ -56,9 +56,9 @@ async function extractDetails(url) {
             }
         }
 
-        return JSON.stringify({ description: description, tags: tags });
+        return { description: description, tags: tags };
     } catch (err) {
-        return JSON.stringify({ description: "", tags: [] });
+        return { description: "", tags: [] };
     }
 }
 
@@ -92,9 +92,9 @@ async function extractChapters(url) {
         }
 
         results.sort((a, b) => parseFloat(a[0]) - parseFloat(b[0]));
-        return JSON.stringify({ en: results });
+        return { en: results };
     } catch (err) {
-        return JSON.stringify({ en: [] });
+        return { en: [] };
     }
 }
 
@@ -115,9 +115,9 @@ async function extractImages(url) {
         const text = await response.text();
         const json = JSON.parse(text);
         const images = (json && json.data && json.data.images) ? json.data.images : [];
-        return JSON.stringify(images.map(toAbsolute));
+        return images.map(toAbsolute);
     } catch (err) {
-        return JSON.stringify([]);
+        return [];
     }
 }
 
