@@ -1,17 +1,25 @@
 async function searchResults(keyword) {
     const results = [];
     try {
-        const body = "do=search&subaction=search&search_start=1&full_search=0&result_from=1&story=" + encodeURIComponent(keyword);
-        const response = await fetch("https://batcave.biz/index.php?do=search", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/x-www-form-urlencoded",
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-            },
-            body: body
+        const ua = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
+
+        let response = await fetch("https://batcave.biz/search/" + encodeURIComponent(keyword), {
+            headers: { "User-Agent": ua }
         });
-        const html = await response.text();
-        console.log("[BatCave] search status:" + response.status + " len:" + html.length + " hasTile:" + html.includes("readed__img") + " hasResults:" + html.includes("readed d-flex"));
+        let html = await response.text();
+        console.log("[BatCave] searchA status:" + response.status + " len:" + html.length + " hasTile:" + html.includes("readed__img"));
+
+        if (!html.includes("readed__img")) {
+            const body = "do=search&subaction=search&search_start=1&full_search=0&result_from=1&story=" + encodeURIComponent(keyword);
+            response = await fetch("https://batcave.biz/", {
+                method: "POST",
+                headers: { "Content-Type": "application/x-www-form-urlencoded", "User-Agent": ua },
+                body: body
+            });
+            html = await response.text();
+            console.log("[BatCave] searchB status:" + response.status + " len:" + html.length + " hasTile:" + html.includes("readed__img"));
+        }
+
         const regex = /<a href="([^"]+)"[^>]*class="readed__img[^>]*>\s*<img[^>]*data-src="([^"]+)"[^>]*alt="([^"]+)"/g;
         let match;
         while ((match = regex.exec(html)) !== null) {
