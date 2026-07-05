@@ -1,7 +1,7 @@
 {
   "sourceName": "BatCave",
   "iconURL": "https://raw.githubusercontent.com/JayGxnzalez/BatCave/refs/heads/main/icon.png",
-  "version": "1.0.1 fix",
+  "version": "1.0.0",
   "language": "English",
   "scriptURL": "https://raw.githubusercontent.com/JayGxnzalez/BatCave/refs/heads/main/batcave.js",
   "author": {
