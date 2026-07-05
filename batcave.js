@@ -1,13 +1,15 @@
 async function searchResults(keyword) {
     const results = [];
     try {
-        const response = await fetch(`https://batcave.biz/search/${encodeURIComponent(keyword)}/`, {
+        const url = `https://batcave.biz/search/${encodeURIComponent(keyword)}/`;
+        const response = await fetch(url, {
             headers: {
                 "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
             }
         });
         const html = await response.text();
-        const regex = /<a href="([^"]+)" class="readed__img[^"]*"[^>]*>\s*<img data-src="([^"]+)"[^>]*alt="([^"]+)"/g;
+        console.log("[BatCave] search status:" + response.status + " len:" + html.length + " hasTile:" + html.includes("readed__img") + " hasResults:" + html.includes("readed d-flex"));
+        const regex = /<a href="([^"]+)"[^>]*class="readed__img[^>]*>\s*<img[^>]*data-src="([^"]+)"[^>]*alt="([^"]+)"/g;
         let match;
         while ((match = regex.exec(html)) !== null) {
             results.push({
@@ -16,8 +18,10 @@ async function searchResults(keyword) {
                 title: decodeEntities(match[3].trim())
             });
         }
+        console.log("[BatCave] search parsed:" + results.length);
         return results;
     } catch (err) {
+        console.log("[BatCave] search error:" + err);
         return [];
     }
 }
