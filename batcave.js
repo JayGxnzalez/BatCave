@@ -1,3 +1,5 @@
+const GUARD_COOKIE = "__guard_trust=OTkuMTA4LjE2MC4xODd8MTc4MzI2ODk2N3wxNzgzMzU1MzY3fDB8MmJmYzY0NWE1ODdmNDgyMnw3ODEzMTZ8ZGY1YTllNTA4OTVjYjRkMTE5Yjk5Nzk1ZDg5OGViYTc=; __guard_token=OTkuMTA4LjE2MC4xODd8MTc4MzI3MDc2NnwwfDUyNDcwMXxiMzkwODA2YzUzYzg1NTY3MTAyZWM3ZjBiNDZhNDQ1Ng==; PHPSESSID=d6befbd1bd497b186d6ba2d06811dc82";
+
 async function searchResults(keyword, page) {
     const results = [];
     try {
@@ -7,6 +9,7 @@ async function searchResults(keyword, page) {
 
         const response = await soraFetch(url);
         const html = response ? await response.text() : "";
+        console.log("[BatCave] search status:" + (response ? response.status : "null") + " len:" + html.length + " hasTile:" + html.includes("readed__img"));
 
         const regex = /<a href="([^"]+)"[^>]*class="readed__img[^>]*>\s*<img[^>]*data-src="([^"]+)"[^>]*alt="([^"]+)"/g;
         let match;
@@ -17,6 +20,7 @@ async function searchResults(keyword, page) {
                 title: decodeEntities(match[3].trim())
             });
         }
+        console.log("[BatCave] search parsed:" + results.length);
         return results;
     } catch (err) {
         return [];
@@ -120,6 +124,7 @@ async function soraFetch(url, options) {
         headers["User-Agent"] = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
     }
     if (!headers["Referer"]) headers["Referer"] = "https://batcave.biz/";
+    if (GUARD_COOKIE && !headers["Cookie"]) headers["Cookie"] = GUARD_COOKIE;
     const method = options.method || "GET";
     const body = options.body || null;
     try {
