@@ -5,5 +5,7 @@
   "language": "English",
   "scriptURL": "https://raw.githubusercontent.com/JayGxnzalez/BatCave/refs/heads/main/batcave.js",
   "type": "mangas",
-  "author": { "name": "Jay", "iconURL": "https://avatars.githubusercontent.com/JayGxnzalez?s=400" }
+  "author": { 
+    "name": "Jay", 
+    "iconURL": "https://avatars.githubusercontent.com/JayGxnzalez?s=400" }
 }
