@@ -1,25 +1,12 @@
-async function searchResults(keyword) {
+async function searchResults(keyword, page) {
     const results = [];
     try {
-        const plainHome = await fetch("https://batcave.biz/").then(r => r.status).catch(e => "err:" + e);
-        console.log("[BatCave] probe plainHome status:" + plainHome);
-        const v2Home = await soraFetch("https://batcave.biz/");
-        console.log("[BatCave] probe v2Home status:" + (v2Home ? v2Home.status : "null"));
+        page = page || 1;
+        let url = "https://batcave.biz/search/" + encodeURIComponent(keyword) + "/";
+        if (page > 1) url += "page/" + page + "/";
 
-        let response = await soraFetch("https://batcave.biz/search/" + encodeURIComponent(keyword));
-        let html = response ? await response.text() : "";
-        console.log("[BatCave] searchA status:" + (response ? response.status : "null") + " len:" + html.length + " hasTile:" + html.includes("readed__img"));
-
-        if (!html.includes("readed__img")) {
-            const body = "do=search&subaction=search&search_start=1&full_search=0&result_from=1&story=" + encodeURIComponent(keyword);
-            response = await soraFetch("https://batcave.biz/", {
-                method: "POST",
-                headers: { "Content-Type": "application/x-www-form-urlencoded" },
-                body: body
-            });
-            html = response ? await response.text() : "";
-            console.log("[BatCave] searchB status:" + (response ? response.status : "null") + " len:" + html.length + " hasTile:" + html.includes("readed__img"));
-        }
+        const response = await soraFetch(url);
+        const html = response ? await response.text() : "";
 
         const regex = /<a href="([^"]+)"[^>]*class="readed__img[^>]*>\s*<img[^>]*data-src="([^"]+)"[^>]*alt="([^"]+)"/g;
         let match;
@@ -30,10 +17,8 @@ async function searchResults(keyword) {
                 title: decodeEntities(match[3].trim())
             });
         }
-        console.log("[BatCave] search parsed:" + results.length);
         return results;
     } catch (err) {
-        console.log("[BatCave] search error:" + err);
         return [];
     }
 }
@@ -44,7 +29,7 @@ async function extractDetails(url) {
         const html = response ? await response.text() : "";
 
         let description = "";
-        const descMatch = html.match(/<div class="page__text[^"]*full-text[^"]*">([\s\S]*?)<\/div>/);
+        const descMatch = html.match(/<div class="page__text[^"]*">([\s\S]*?)<\/div>/);
         if (descMatch) {
             description = decodeEntities(stripTags(descMatch[1]));
         }
@@ -84,12 +69,13 @@ async function extractChapters(url) {
         if (dataMatch) {
             const data = JSON.parse(dataMatch[1]);
             const newsId = data.news_id;
+            const xhash = data.xhash || "";
             if (data.chapters && data.chapters.length) {
                 for (const ch of data.chapters) {
                     results.push([
                         String(ch.posi),
                         [{
-                            id: `https://batcave.biz/reader/${newsId}/${ch.id}`,
+                            id: `https://batcave.biz/reader/${newsId}/${ch.id}${xhash}`,
                             title: decodeEntities(ch.title || `#${ch.posi}`),
                             chapter: ch.posi,
                             scanlation_group: ""
@@ -109,8 +95,10 @@ async function extractChapters(url) {
 async function extractImages(url) {
     try {
         const parts = url.replace(/\/+$/, "").split("/");
-        const chapterId = parts.pop();
+        const rawId = parts.pop();
         const newsId = parts.pop();
+        const chapterId = (rawId.match(/^\d+/) || [rawId])[0];
+
         const response = await soraFetch("https://batcave.biz/engine/ajax/controller.php?mod=api&action=reader%2FgetChapterData", {
             method: "POST",
             headers: { "Content-Type": "application/json", "X-Requested-With": "XMLHttpRequest" },
@@ -131,6 +119,7 @@ async function soraFetch(url, options) {
     if (!headers["User-Agent"]) {
         headers["User-Agent"] = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
     }
+    if (!headers["Referer"]) headers["Referer"] = "https://batcave.biz/";
     const method = options.method || "GET";
     const body = options.body || null;
     try {
