@@ -1,23 +1,24 @@
 async function searchResults(keyword) {
     const results = [];
     try {
-        const ua = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
+        const plainHome = await fetch("https://batcave.biz/").then(r => r.status).catch(e => "err:" + e);
+        console.log("[BatCave] probe plainHome status:" + plainHome);
+        const v2Home = await soraFetch("https://batcave.biz/");
+        console.log("[BatCave] probe v2Home status:" + (v2Home ? v2Home.status : "null"));
 
-        let response = await fetch("https://batcave.biz/search/" + encodeURIComponent(keyword), {
-            headers: { "User-Agent": ua }
-        });
-        let html = await response.text();
-        console.log("[BatCave] searchA status:" + response.status + " len:" + html.length + " hasTile:" + html.includes("readed__img"));
+        let response = await soraFetch("https://batcave.biz/search/" + encodeURIComponent(keyword));
+        let html = response ? await response.text() : "";
+        console.log("[BatCave] searchA status:" + (response ? response.status : "null") + " len:" + html.length + " hasTile:" + html.includes("readed__img"));
 
         if (!html.includes("readed__img")) {
             const body = "do=search&subaction=search&search_start=1&full_search=0&result_from=1&story=" + encodeURIComponent(keyword);
-            response = await fetch("https://batcave.biz/", {
+            response = await soraFetch("https://batcave.biz/", {
                 method: "POST",
-                headers: { "Content-Type": "application/x-www-form-urlencoded", "User-Agent": ua },
+                headers: { "Content-Type": "application/x-www-form-urlencoded" },
                 body: body
             });
-            html = await response.text();
-            console.log("[BatCave] searchB status:" + response.status + " len:" + html.length + " hasTile:" + html.includes("readed__img"));
+            html = response ? await response.text() : "";
+            console.log("[BatCave] searchB status:" + (response ? response.status : "null") + " len:" + html.length + " hasTile:" + html.includes("readed__img"));
         }
 
         const regex = /<a href="([^"]+)"[^>]*class="readed__img[^>]*>\s*<img[^>]*data-src="([^"]+)"[^>]*alt="([^"]+)"/g;
@@ -39,12 +40,8 @@ async function searchResults(keyword) {
 
 async function extractDetails(url) {
     try {
-        const response = await fetch(url, {
-            headers: {
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-            }
-        });
-        const html = await response.text();
+        const response = await soraFetch(url);
+        const html = response ? await response.text() : "";
 
         let description = "";
         const descMatch = html.match(/<div class="page__text[^"]*full-text[^"]*">([\s\S]*?)<\/div>/);
@@ -71,7 +68,7 @@ async function extractDetails(url) {
             }
         }
 
-        return { description: description, tags: tags };
+        return { description: String(description), tags: tags };
     } catch (err) {
         return { description: "", tags: [] };
     }
@@ -80,12 +77,8 @@ async function extractDetails(url) {
 async function extractChapters(url) {
     const results = [];
     try {
-        const response = await fetch(url, {
-            headers: {
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-            }
-        });
-        const html = await response.text();
+        const response = await soraFetch(url);
+        const html = response ? await response.text() : "";
 
         const dataMatch = html.match(/window\.__DATA__\s*=\s*(\{[\s\S]*?\})\s*;\s*<\/script>/);
         if (dataMatch) {
@@ -118,21 +111,36 @@ async function extractImages(url) {
         const parts = url.replace(/\/+$/, "").split("/");
         const chapterId = parts.pop();
         const newsId = parts.pop();
-        const response = await fetch("https://batcave.biz/engine/ajax/controller.php?mod=api&action=reader%2FgetChapterData", {
+        const response = await soraFetch("https://batcave.biz/engine/ajax/controller.php?mod=api&action=reader%2FgetChapterData", {
             method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                "X-Requested-With": "XMLHttpRequest",
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-            },
+            headers: { "Content-Type": "application/json", "X-Requested-With": "XMLHttpRequest" },
             body: JSON.stringify({ news_id: parseInt(newsId), chapter_id: parseInt(chapterId) })
         });
-        const text = await response.text();
+        const text = response ? await response.text() : "";
         const json = JSON.parse(text);
         const images = (json && json.data && json.data.images) ? json.data.images : [];
         return images.map(toAbsolute);
     } catch (err) {
         return [];
+    }
+}
+
+async function soraFetch(url, options) {
+    options = options || {};
+    const headers = options.headers || {};
+    if (!headers["User-Agent"]) {
+        headers["User-Agent"] = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
+    }
+    const method = options.method || "GET";
+    const body = options.body || null;
+    try {
+        return await fetchv2(url, headers, method, body);
+    } catch (e) {
+        try {
+            return await fetch(url, { method: method, headers: headers, body: body });
+        } catch (error) {
+            return null;
+        }
     }
 }
 
