@@ -1,25 +1,42 @@
 async function searchResults(keyword, page) {
-    const results = [];
     try {
-        page = page || 1;
-        let url = "https://batcave.biz/search/" + encodeURIComponent(keyword) + "/";
-        if (page > 1) url += "page/" + page + "/";
+        if (page && page > 1) return await searchPage(keyword, page);
 
-        const html = await guardFetch(url);
-        const regex = /<a href="([^"]+)"[^>]*class="readed__img[^>]*>\s*<img[^>]*data-src="([^"]+)"[^>]*alt="([^"]+)"/g;
-        let match;
-        while ((match = regex.exec(html)) !== null) {
-            results.push({
-                id: toAbsolute(match[1]),
-                imageURL: toAbsolute(match[2]),
-                title: decodeEntities(match[3].trim())
-            });
+        const MAX_PAGES = 5;
+        const seen = {};
+        const all = [];
+        for (let p = 1; p <= MAX_PAGES; p++) {
+            const pageResults = await searchPage(keyword, p);
+            if (!pageResults.length) break;
+            for (let i = 0; i < pageResults.length; i++) {
+                const r = pageResults[i];
+                if (!seen[r.id]) { seen[r.id] = true; all.push(r); }
+            }
+            if (pageResults.length < 10) break;
         }
-        console.log("[BatCave] search parsed:" + results.length);
-        return results;
+        console.log("[BatCave] search parsed:" + all.length);
+        return all;
     } catch (err) {
         return [];
     }
+}
+
+async function searchPage(keyword, page) {
+    const results = [];
+    let url = "https://batcave.biz/search/" + encodeURIComponent(keyword) + "/";
+    if (page > 1) url += "page/" + page + "/";
+
+    const html = await guardFetch(url);
+    const regex = /<a href="([^"]+)"[^>]*class="readed__img[^>]*>\s*<img[^>]*data-src="([^"]+)"[^>]*alt="([^"]+)"/g;
+    let match;
+    while ((match = regex.exec(html)) !== null) {
+        results.push({
+            id: toAbsolute(match[1]),
+            imageURL: toAbsolute(match[2]),
+            title: decodeEntities(match[3].trim())
+        });
+    }
+    return results;
 }
 
 async function extractDetails(url) {
