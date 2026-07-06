@@ -15,6 +15,7 @@ async function searchResults(keyword, page) {
                 title: decodeEntities(match[3].trim())
             });
         }
+        console.log("[BatCave] search parsed:" + results.length);
         return results;
     } catch (err) {
         return [];
@@ -77,6 +78,7 @@ async function extractChapters(url) {
             }
         }
 
+        console.log("[BatCave] chapters parsed:" + results.length);
         results.sort((a, b) => parseFloat(a[0]) - parseFloat(b[0]));
         return { en: results };
     } catch (err) {
@@ -98,6 +100,7 @@ async function extractImages(url) {
         });
         const json = JSON.parse(text);
         const images = (json && json.data && json.data.images) ? json.data.images : [];
+        console.log("[BatCave] images parsed:" + images.length);
         return images.map(toAbsolute);
     } catch (err) {
         return [];
@@ -109,9 +112,8 @@ async function extractImages(url) {
 async function guardFetch(url, options) {
     let text = await soraFetchText(url, options);
     if (isGuardChallenge(text)) {
-        console.log("[BatCave] DLE Guard detected, solving...");
         const ok = await solveGuard(text);
-        console.log("[BatCave] guard solved:" + ok + " trust:" + !!guardCookies["__guard_trust"]);
+        console.log("[BatCave] guard: detected solved:" + ok + " trust:" + !!guardCookies["__guard_trust"]);
         if (ok) {
             text = await soraFetchText(url, options);
             if (isGuardChallenge(text)) {
@@ -140,7 +142,6 @@ async function solveGuard(html) {
             nonce++;
             if (nonce > 5000000) return false;
         }
-        console.log("[BatCave] pow nonce:" + nonce);
 
         const body =
             "token=" + encodeURIComponent(pToken) +
