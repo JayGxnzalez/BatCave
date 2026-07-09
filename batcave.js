@@ -110,13 +110,26 @@ async function extractImages(url) {
         const newsId = parts.pop();
         const chapterId = (rawId.match(/^\d+/) || [rawId])[0];
 
-        const text = await guardFetch("https://batcave.biz/engine/ajax/controller.php?mod=api&action=reader%2FgetChapterData", {
+        const apiUrl = "https://batcave.biz/engine/ajax/controller.php?mod=api&action=reader%2FgetChapterData";
+        const apiOptions = {
             method: "POST",
             headers: { "Content-Type": "application/json", "X-Requested-With": "XMLHttpRequest" },
             body: JSON.stringify({ news_id: parseInt(newsId), chapter_id: parseInt(chapterId) })
-        });
-        const json = JSON.parse(text);
-        const images = (json && json.data && json.data.images) ? json.data.images : [];
+        };
+
+        let images = [];
+        for (let attempt = 0; attempt < 3; attempt++) {
+            const text = await guardFetch(apiUrl, apiOptions);
+            try {
+                const json = JSON.parse(text);
+                if (json && json.data && json.data.images && json.data.images.length) {
+                    images = json.data.images;
+                    break;
+                }
+            } catch (e) {}
+            if (guardSolving) { try { await guardSolving; } catch (e) {} }
+        }
+
         console.log("[BatCave] images parsed:" + images.length);
         return images.map(toAbsolute);
     } catch (err) {
@@ -126,17 +139,30 @@ async function extractImages(url) {
 
 // ===== DLE Guard solver (proof-of-work challenge) =====
 
+var guardCookies = {};
+var guardSolving = null;
+
 async function guardFetch(url, options) {
     let text = await soraFetchText(url, options);
     if (isGuardChallenge(text)) {
-        const ok = await solveGuard(text);
-        console.log("[BatCave] guard: detected solved:" + ok + " trust:" + !!guardCookies["__guard_trust"]);
-        if (ok) {
-            text = await soraFetchText(url, options);
-            if (isGuardChallenge(text)) {
-                await solveGuard(text);
-                text = await soraFetchText(url, options);
+        if (guardSolving) {
+            await guardSolving;
+        } else {
+            guardSolving = solveGuard(text);
+            const ok = await guardSolving;
+            guardSolving = null;
+            console.log("[BatCave] guard: detected solved:" + ok + " trust:" + !!guardCookies["__guard_trust"]);
+        }
+        text = await soraFetchText(url, options);
+        if (isGuardChallenge(text)) {
+            if (guardSolving) {
+                await guardSolving;
+            } else {
+                guardSolving = solveGuard(text);
+                await guardSolving;
+                guardSolving = null;
             }
+            text = await soraFetchText(url, options);
         }
     }
     return text;
@@ -181,8 +207,6 @@ async function solveGuard(html) {
 }
 
 // ===== transport + cookie jar =====
-
-var guardCookies = {};
 
 function storeCookies(setCookie) {
     if (!setCookie) return;
